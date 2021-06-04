@@ -14,6 +14,7 @@ var db = mongoose.connect('mongodb://localhost/audio-shop')
 
 var Product = require('./models/product');
 var WishList = require('./models/wishlist');
+var User = require('./models/user')
 
 app.post('/product', function(req, res) {
     if (!req.body) {
@@ -86,6 +87,52 @@ app.put('/wishlist/product/add', (req, res) => {
         }
     })
 })
+
+// Endpoint /user
+app.post('/user', (req, res) => {
+    if (!req.body) 
+        res.status(500).send({ error: "Could not get users!" })
+    else {
+        var userList = req.body 
+        for (let i=0; i<userList.length; i++) {
+            var user = new User({
+                username: userList[i].username,
+                password: userList[i].password
+            })
+            user.save( (err, savedUser) => {
+                if (err) res.status(500).send({ error: "Could not save user!" })
+                else res.send(savedUser)
+            })
+        }
+    }
+})
+app.get('/user', (req, res) => {
+    User.find({}).populate({ path: 'products', model: "Product" }).exec( (err, user) => {
+        if (err) res.status(500).send({ error: "Error happened!" })
+        else res.send(user)
+    })
+})
+app.put('/user/cart/add', (req, res) => {
+    Product.findOne({ _id: req.body.productId }, (err, product) => {
+        if (err) res.status(500).send({ error: "Could not find the specified item" })
+        else {
+            User.update({ _id: req.body.userId }, {$addToSet: {products: product._id}}, (err, user) => {
+                if (err) res.status(500).send({ error: "Could not append item in the user cart!" })
+                else res.send(user)
+            })
+        }
+    })
+})
+app.get('/user/:userId', (req, res) => {
+    var userId = req.params.userId
+
+    User.findOne({ _id: userId }, (err, user) => {
+        if (err) res.status(500).send({ error: "No such user in the database" })
+        else res.send(user)
+    })
+    
+})
+
 app.listen(3000, () => {
     console.log("Audio Shop API running!");
 })
